@@ -1,0 +1,11 @@
+# Django #
+*.log
+*.pot
+*.pyc
+**/__pycache__
+**/migrations/**
+!api/migrations/__init__.py
+media/
+venv
+#vscode
+.vscode
