@@ -51,14 +51,14 @@ class Categorie(models.Model):
         ("falaise", "falaise"),
         ("chute d'eau", "chute d'eau"),
     ]
-    nom = models.CharField(max_length=50, choices=CATEGORIE_CHOIX, unique=True)
+    nom = models.CharField(max_length=50, choices=CATEGORIE_CHOIX, primary_key=True)
 
     def __str__(self):
         return self.nom
 
 
 class Theme(models.Model):
-    nom = models.CharField(max_length=50, unique=True)
+    nom = models.CharField(max_length=50, primary_key=True)
 
     def __str__(self):
         return self.nom
@@ -73,7 +73,7 @@ class Transport(models.Model):
         ("Trame", "Trame"),
         ("CableCar", "CableCar"),
     ]
-    nom = models.CharField(max_length=50, choices=transport_CHOIX, unique=True)
+    nom = models.CharField(max_length=50, choices=transport_CHOIX, primary_key=True)
 
     def __str__(self):
         return self.nom
@@ -82,6 +82,7 @@ class Transport(models.Model):
 class PointInteret(models.Model):
     nom = models.CharField(max_length=50)
     description = models.CharField(max_length=200, blank=True)
+    wilaya = models.CharField(max_length=50)
     adresse = models.CharField(max_length=50)
     latitude = models.FloatField()
     longitude = models.FloatField()
@@ -92,6 +93,8 @@ class PointInteret(models.Model):
     transport = models.ManyToManyField(
         Transport, related_name="points_interets", blank=True
     )
+    heur_ouverture = models.TimeField(auto_now=False, auto_now_add=False)
+    heur_fermeture = models.TimeField(auto_now=False, auto_now_add=False)
 
     def __str__(self):
         return self.nom
@@ -107,27 +110,6 @@ class Photo(models.Model):
         return self.point_interet.nom
 
 
-class Horaire(models.Model):
-    JOUR_CHOIX = [
-        ("Lundi", "Lundi"),
-        ("Mardi", "Mardi"),
-        ("Mercredi", "Mercredi"),
-        ("Jeudi", "Jeudi"),
-        ("Vendredi", "Vendredi"),
-        ("Samedi", "Samedi"),
-        ("Dimanche", "Dimanche"),
-    ]
-    jour = models.CharField(max_length=10, choices=JOUR_CHOIX)
-    heur_ouverture = models.TimeField(auto_now=False, auto_now_add=False)
-    heur_fermeture = models.TimeField(auto_now=False, auto_now_add=False)
-    point_interet = models.ForeignKey(
-        PointInteret, related_name="horaires", on_delete=models.CASCADE
-    )
-
-    def __str__(self):
-        return self.point_interet.nom + "_" + self.jour
-
-
 class Commentaire(models.Model):
     commentaire = models.CharField(max_length=500)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="commentairs")
@@ -137,9 +119,7 @@ class Commentaire(models.Model):
     time = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return (
-            self.user.first_name + " " + self.user.last_name + " : " + self.commentaire
-        )
+        return self.user.nom + " : " + self.commentaire
 
 
 class Evenement(models.Model):
@@ -147,7 +127,7 @@ class Evenement(models.Model):
     date_debut = models.DateTimeField(auto_now=False, auto_now_add=False)
     date_fin = models.DateTimeField(auto_now=False, auto_now_add=False)
     description = models.CharField(max_length=200)
-    pointInteret = models.ForeignKey(
+    point_interet = models.ForeignKey(
         PointInteret, on_delete=models.CASCADE, related_name="evenements"
     )
 
