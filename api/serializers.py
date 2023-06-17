@@ -4,10 +4,18 @@ from .models import *
 from datetime import datetime
 
 
+class WilayaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Wilaya
+        fields = "__all__"
+
+
 class UserSerializer(serializers.ModelSerializer):
+    wilayas = WilayaSerializer(many=True)
+
     class Meta:
         model = User
-        fields = ["id", "nom", "email", "picture"]
+        fields = ["id", "nom", "email", "picture", "wilayas"]
         read_only_fields = ["email", "picture"]
 
 
@@ -65,6 +73,18 @@ class PointInteretSerializer(serializers.ModelSerializer):
             except Categorie.DoesNotExist:
                 return Categorie.objects.create(pk=data["nom"])
 
+    class WilayaField(serializers.RelatedField):
+        def to_representation(self, value):
+            # model to json
+            return WilayaSerializer(value).data
+
+        def to_internal_value(self, data):
+            # json to model
+            try:
+                return Wilaya.objects.get(pk=data["nom"])
+            except Wilaya.DoesNotExist:
+                return Wilaya.objects.create(pk=data["nom"])
+
     class ThemeField(serializers.RelatedField):
         def to_representation(self, value):
             # model to json
@@ -100,6 +120,7 @@ class PointInteretSerializer(serializers.ModelSerializer):
     categorie = CategorieField(queryset=User.objects.all())
     theme = ThemeField(queryset=User.objects.all())
     transport = TransportField(queryset=User.objects.all())
+    wilaya = WilayaField(queryset=Wilaya.objects.all())
     photos = PhotoSerializer(many=True, read_only=True)
     evenements = EvenementSerializer(many=True, read_only=True)
     commentaires = serializers.SerializerMethodField(read_only=True)

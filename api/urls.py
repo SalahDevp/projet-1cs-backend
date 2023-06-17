@@ -10,7 +10,8 @@ urlpatterns = [
     path("delete-commentaire/<int:id>", views.delete_commentaire),
     path("add-evenement/<int:pi_id>", views.add_evenement),
     path("delete-evenement/<int:id>", views.delete_evenement),
+    path("image/<int:id>", views.image_id),
+    path("user", views.user),
 ]
 """
-    path("image/<int:id>", views.image_id),
     path('users/<int:id>', views.users_id),"""

@@ -2,8 +2,16 @@ from .serializers import *
 from .models import *
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.db.models import Q
+
+
+def check_authorized(user, nomWilaya):
+    wilaya_exists = user.wilayas.filter(nom=nomWilaya).exists()
+    if not nomWilaya:
+        wilaya_exists = True
+    return user.is_superuser or user.is_local_admin and wilaya_exists
 
 
 @api_view(["GET", "POST"])
@@ -42,6 +50,9 @@ def point_interet_all(request):
             return Response(serializedPoints.data)
 
         elif request.method == "POST":
+            # PERMISSIONS:
+            if not check_authorized(request.user, request.data["wilaya"]["nom"]):
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
             serializer = PointInteretSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()
@@ -53,36 +64,48 @@ def point_interet_all(request):
         Response("erreur!", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(["GET", "DELETE"])
+@api_view(["GET", "PUT", "DELETE"])
+# @permission_classes([IsAuthenticated])
 def point_interet(request, pk=None):
-    if request.method == "GET":
-        try:
-            point_interet = PointInteret.objects.get(pk=pk)
-            serializer = PointInteretSerializer(point_interet)
+    try:
+        point_interet = PointInteret.objects.get(pk=pk)
+    except PointInteret.DoesNotExist:
+        return Response(
+            {"error": "PointInteret not found."}, status=status.HTTP_404_NOT_FOUND
+        )
 
+    if request.method == "GET":
+        serializer = PointInteretSerializer(point_interet)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    # TODO: Check permission
+    elif request.method == "PUT":
+        # PERMISSIONS:
+        if not check_authorized(request.user, request.data["wilaya"]["nom"]):
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        serializer = PointInteretSerializer(point_interet, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
-        except PointInteret.DoesNotExist:
-            return Response(
-                {"error": "PointInteret not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     elif request.method == "DELETE":
-        try:
-            point_interet = PointInteret.objects.get(pk=pk)
-            # TODO: check permission
-            point_interet.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Exception as e:
-            print(e)
-            return Response(status=status.HTTP_404_NOT_FOUND)
+        # PERMISSIONS:
+        if not check_authorized(request.user):
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        point_interet.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def add_commentaire(request, pi_id):
     try:
         # data: {commentaire:"content"}
         data = request.data.copy()
         # TODO: change user id
-        data["user"] = 1
+        data["user"] = request.user.id
         data["point_interet"] = pi_id
 
         serializer = CommentaireSerializer(data=data)
@@ -97,10 +120,13 @@ def add_commentaire(request, pi_id):
 
 
 @api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
 def delete_commentaire(request, id):
     try:
         commentaire = Commentaire.objects.get(pk=id)
-        # TODO: check permission
+        # PERMISSIONS:
+        if not check_authorized(request.user) or commentaire.user.id != request.user.id:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         commentaire.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     except Exception as e:
@@ -109,8 +135,12 @@ def delete_commentaire(request, id):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def add_evenement(request, pi_id):
     try:
+        # PERMISSIONS:
+        if not check_authorized(request.user):
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         data = request.data.copy()
         data["point_interet"] = pi_id
 
@@ -126,12 +156,43 @@ def add_evenement(request, pi_id):
 
 
 @api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
 def delete_evenement(request, id):
     try:
         evenement = Evenement.objects.get(pk=id)
-        # TODO: check permission
+        # PERMISSIONS:
+        if not check_authorized(request.user):
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
         evenement.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     except Exception as e:
         print(e)
         return Response(status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def image_id(request, id):
+    try:
+        point_interet = PointInteret.objects.get(id=id)
+        serializer = PhotoSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(point_interet=point_interet)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+    except PointInteret.DoesNotExist:
+        return Response(
+            "point interet does not exist!", status=status.HTTP_404_NOT_FOUND
+        )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user(request):
+    try:
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
+
+    except User.DoesNotExist:
+        return Response("user does not exist!", status=status.HTTP_404_NOT_FOUND)

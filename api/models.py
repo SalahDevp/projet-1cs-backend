@@ -31,6 +31,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     # if user can access admin site
     is_staff = models.BooleanField(default=False)
+    # if user is local admin
+    is_local_admin = models.BooleanField(default=False)
+    wilayas = models.ManyToManyField(
+        "Wilaya", related_name="users", null=True, blank=True
+    )
 
     USERNAME_FIELD = "email"
     objects = UserManager()
@@ -64,14 +69,21 @@ class Theme(models.Model):
         return self.nom
 
 
+class Wilaya(models.Model):
+    nom = models.CharField(max_length=50, primary_key=True)
+
+    def __str__(self):
+        return self.nom
+
+
 class Transport(models.Model):
     transport_CHOIX = [
-        ("Car", "Car"),
+        ("Voiture", "Voiture"),
         ("Train", "Train"),
         ("Bus", "Bus"),
         ("Metro", "Metro"),
         ("Trame", "Trame"),
-        ("CableCar", "CableCar"),
+        ("Téléphérique", "Téléphérique"),
     ]
     nom = models.CharField(max_length=50, choices=transport_CHOIX, primary_key=True)
 
@@ -81,8 +93,10 @@ class Transport(models.Model):
 
 class PointInteret(models.Model):
     nom = models.CharField(max_length=50)
-    description = models.CharField(max_length=200, blank=True)
-    wilaya = models.CharField(max_length=50)
+    description = models.CharField(max_length=500, blank=True)
+    wilaya = models.ForeignKey(
+        Wilaya, related_name="points_interets", on_delete=models.CASCADE
+    )
     adresse = models.CharField(max_length=50)
     latitude = models.FloatField()
     longitude = models.FloatField()
@@ -126,7 +140,7 @@ class Evenement(models.Model):
     nom = models.CharField(max_length=50)
     date_debut = models.DateTimeField(auto_now=False, auto_now_add=False)
     date_fin = models.DateTimeField(auto_now=False, auto_now_add=False)
-    description = models.CharField(max_length=200)
+    description = models.CharField(max_length=500)
     point_interet = models.ForeignKey(
         PointInteret, on_delete=models.CASCADE, related_name="evenements"
     )
